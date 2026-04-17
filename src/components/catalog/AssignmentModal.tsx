@@ -5,10 +5,10 @@ import { X, LayoutGrid, Info, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface AssignmentModalProps {
-  app: AppRecord | null;
+  apps: AppRecord[];
   isOpen: boolean;
   onClose: () => void;
-  onAssign: (appId: string, groupId: string) => Promise<void>;
+  onAssign: (appIds: string[], groupId: string) => Promise<void>;
 }
 
 const GROUPS = [
@@ -20,19 +20,21 @@ const GROUPS = [
   { id: "shopping-retail", label: "Shopping & E-commerce" },
 ];
 
-export default function AssignmentModal({ app, isOpen, onClose, onAssign }: AssignmentModalProps) {
+export default function AssignmentModal({ apps, isOpen, onClose, onAssign }: AssignmentModalProps) {
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!app) return null;
+  if (apps.length === 0) return null;
 
   const handleAssign = async () => {
     if (!selectedGroupId) return;
     setIsSubmitting(true);
-    await onAssign(app.id, selectedGroupId);
+    await onAssign(apps.map(a => a.id), selectedGroupId);
     setIsSubmitting(false);
     onClose();
   };
+
+  const isBulk = apps.length > 1;
 
   return (
     <AnimatePresence>
@@ -52,20 +54,32 @@ export default function AssignmentModal({ app, isOpen, onClose, onAssign }: Assi
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-lg shadow-2xl z-[70] overflow-hidden border border-utility-border"
           >
             <div className="px-5 py-3 border-b border-utility-border bg-[#fafafa] flex items-center justify-between">
-              <h3 className="text-[11px] font-bold text-utility-muted uppercase tracking-wider">Asset Assignment</h3>
+              <h3 className="text-[11px] font-bold text-utility-muted uppercase tracking-wider">
+                {isBulk ? `Assign ${apps.length} Assets` : 'Asset Assignment'}
+              </h3>
               <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded transition-colors">
                 <X className="w-4 h-4 text-utility-muted" />
               </button>
             </div>
 
             <div className="p-6">
-              <div className="flex items-center gap-3 p-3 bg-white border border-utility-border rounded-md mb-6">
-                <img src={app.icon} className="w-8 h-8 rounded" referrerPolicy="no-referrer" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-utility-text truncate">{app.name}</p>
-                  <p className="text-[11px] text-utility-muted truncate">{app.appId}</p>
+              {isBulk ? (
+                <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md mb-6">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 className="w-4 h-4 text-utility-accent" />
+                    <span className="text-[13px] font-bold text-utility-text">{apps.length} Apps Selected</span>
+                  </div>
+                  <p className="text-[11px] text-utility-muted italic">Batch assigning to a unified group.</p>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 bg-white border border-utility-border rounded-md mb-6">
+                  <img src={apps[0].icon} className="w-8 h-8 rounded" referrerPolicy="no-referrer" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-utility-text truncate">{apps[0].name}</p>
+                    <p className="text-[11px] text-utility-muted truncate">{apps[0].appId}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>

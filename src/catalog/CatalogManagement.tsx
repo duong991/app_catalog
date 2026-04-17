@@ -19,7 +19,8 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
   const [apps, setApps] = useState<AppRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedApp, setSelectedApp] = useState<AppRecord | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [selectedApps, setSelectedApps] = useState<AppRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -41,18 +42,29 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
     fetchApps();
   }, []);
 
-  const handleAssign = async (id: string, groupId: string) => {
+  const handleAssign = async (ids: string[], groupId: string) => {
     try {
-      await fetch(`/api/app-catalog/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appGroupId: groupId }),
-      });
+      for (const id of ids) {
+        await fetch(`/api/app-catalog/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appGroupId: groupId }),
+        });
+      }
       await fetchApps();
       refreshStats();
+      setSelectedApps([]);
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const toggleSelection = (app: AppRecord) => {
+    setSelectedApps(prev => {
+      const exists = prev.find(a => a.id === app.id);
+      if (exists) return prev.filter(a => a.id !== app.id);
+      return [...prev, app];
+    });
   };
 
   const handlePublish = async () => {
@@ -72,11 +84,14 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
     setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
-  const filteredApps = apps.filter(app => 
-    app.name.toLowerCase().includes(search.toLowerCase()) || 
-    app.appId.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredApps = apps.filter(app => {
+    const matchesSearch = app.name.toLowerCase().includes(search.toLowerCase()) || 
+                         app.appId.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === "" || app.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
+  const categories = Array.from(new Set(apps.map(a => a.category))).filter(Boolean);
   const uncategorized = filteredApps.filter(app => !app.appGroupId);
   const grouped = filteredApps.reduce((acc, app) => {
     if (app.appGroupId) {
@@ -120,57 +135,109 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
         {/* Left Column: Apps List */}
         <div className="lg:col-span-2 space-y-6">
           <section className="bg-white rounded-lg border border-utility-border overflow-hidden">
-            <div className="px-5 py-4 border-b border-utility-border bg-slate-50/50 flex items-center justify-between">
-              <h2 className="text-[13px] font-bold text-utility-text">Uncategorized Apps</h2>
-              <div className="relative w-48">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-utility-muted" />
-                <input 
-                  type="text" 
-                  placeholder="Filter apps..." 
-                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-utility-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-utility-accent"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+            <div className="px-5 py-4 border-b border-utility-border bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <h2 className="text-[13px] font-bold text-utility-text">Uncategorized Apps</h2>
+                <div className="flex items-center gap-2">
+                  <Filter className="w-3.5 h-3.5 text-utility-muted" />
+                  <select 
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="bg-transparent text-[11px] font-bold text-utility-muted uppercase tracking-wider focus:outline-none cursor-pointer"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {selectedApps.length > 0 && (
+                  <Button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="!h-8 !px-3 !text-[10px] font-bold uppercase tracking-wider !bg-utility-accent/10 !text-utility-accent hover:!bg-utility-accent hover:!text-white border border-utility-accent/20"
+                  >
+                    Assign {selectedApps.length} Selected
+                  </Button>
+                )}
+                <div className="relative w-48">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-utility-muted" />
+                  <input 
+                    type="text" 
+                    placeholder="Search apps..." 
+                    className="w-full pl-8 pr-3 py-1.5 bg-white border border-utility-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-utility-accent"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
             {uncategorized.length === 0 ? (
               <div className="p-12 text-center text-utility-muted">
-                <p className="text-sm">No uncategorized applications found.</p>
+                <p className="text-sm italic">No matching applications found.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-[#fafafa] border-b border-utility-border">
                     <tr>
+                      <th className="px-5 py-3 w-10">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-utility-border text-utility-accent focus:ring-utility-accent"
+                          checked={selectedApps.length === uncategorized.length && uncategorized.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedApps(uncategorized);
+                            else setSelectedApps([]);
+                          }}
+                        />
+                      </th>
                       <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">App</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Store</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Date</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Store/Category</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Imported</th>
                       <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f1f5f9]">
                     {uncategorized.map(app => (
-                      <tr key={app.id} className="hover:bg-slate-50 transition-colors">
+                      <tr 
+                        key={app.id} 
+                        className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedApps.some(a => a.id === app.id) ? 'bg-blue-50/30' : ''}`}
+                        onClick={() => toggleSelection(app)}
+                      >
+                        <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-utility-border text-utility-accent focus:ring-utility-accent"
+                            checked={selectedApps.some(a => a.id === app.id)}
+                            onChange={() => toggleSelection(app)}
+                          />
+                        </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
                             <img src={app.icon} className="w-8 h-8 rounded-md" referrerPolicy="no-referrer" />
                             <div>
-                              <span className="block text-[13px] font-bold text-utility-text">{app.name}</span>
+                              <span className="block text-[13px] font-bold text-utility-text leading-tight">{app.name}</span>
                               <span className="text-[11px] text-utility-muted">{app.appId}</span>
                             </div>
                           </div>
                         </td>
                         <td className="px-5 py-3">
-                          <StatusBadge status={app.store} size="sm" />
+                          <div className="flex flex-col gap-1">
+                            <StatusBadge status={app.store} size="sm" />
+                            <span className="text-[10px] text-utility-muted font-medium italic">{app.category}</span>
+                          </div>
                         </td>
-                        <td className="px-5 py-3 text-[12px] text-utility-muted">
+                        <td className="px-5 py-3 text-[11px] text-utility-muted">
                           {app.importedDate}
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <button 
-                            className="text-[12px] font-bold text-utility-accent hover:underline"
-                            onClick={() => { setSelectedApp(app); setIsModalOpen(true); }}
+                            className="text-[11px] font-bold text-utility-accent hover:underline"
+                            onClick={() => { setSelectedApps([app]); setIsModalOpen(true); }}
                           >
                             Assign Group
                           </button>
@@ -259,9 +326,9 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
 
       {/* Assignment Modal */}
       <AssignmentModal 
-        app={selectedApp} 
+        apps={selectedApps} 
         isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setSelectedApp(null); }}
+        onClose={() => { setIsModalOpen(false); setSelectedApps([]); }}
         onAssign={handleAssign}
       />
 
