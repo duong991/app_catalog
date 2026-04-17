@@ -1,0 +1,6 @@
+{
+  "name": "App Catalog V2 Admin Portal",
+  "description": "Internal admin tool for managing the App Catalog including crawling metadata, organizing apps into groups, and publishing changes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
