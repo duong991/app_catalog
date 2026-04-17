@@ -12,29 +12,32 @@ interface AssignmentModalProps {
 }
 
 const GROUPS = [
-  { id: "communications-main", label: "Communications (Main)" },
-  { id: "social-media", label: "Social Media & Networking" },
-  { id: "productivity-tools", label: "Productivity & Utilities" },
-  { id: "entertainment-apps", label: "Streaming & Entertainment" },
-  { id: "finance-crypto", label: "Finance & Blockchain" },
-  { id: "shopping-retail", label: "Shopping & E-commerce" },
+  { id: "communications-main", label: "Giao tiếp (Chính)" },
+  { id: "social-media", label: "Mạng xã hội" },
+  { id: "productivity-tools", label: "Công cụ Năng suất" },
+  { id: "entertainment-apps", label: "Giải trí & Phát trực tuyến" },
+  { id: "finance-crypto", label: "Tài chính & Tiền điện tử" },
+  { id: "shopping-retail", label: "Mua sắm & Bán lẻ" },
 ];
 
 export default function AssignmentModal({ apps, isOpen, onClose, onAssign }: AssignmentModalProps) {
   const [selectedGroupId, setSelectedGroupId] = useState("");
+  const [customGroupId, setCustomGroupId] = useState("");
+  const [useCustom, setUseCustom] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (apps.length === 0) return null;
-
   const handleAssign = async () => {
-    if (!selectedGroupId) return;
+    const finalGroupId = useCustom ? customGroupId : selectedGroupId;
+    if (!finalGroupId || apps.length === 0) return;
+    
     setIsSubmitting(true);
-    await onAssign(apps.map(a => a.id), selectedGroupId);
+    await onAssign(apps.map(a => a.id), finalGroupId);
     setIsSubmitting(false);
     onClose();
   };
 
   const isBulk = apps.length > 1;
+  const hasApps = apps.length > 0;
 
   return (
     <AnimatePresence>
@@ -55,7 +58,7 @@ export default function AssignmentModal({ apps, isOpen, onClose, onAssign }: Ass
           >
             <div className="px-5 py-3 border-b border-utility-border bg-[#fafafa] flex items-center justify-between">
               <h3 className="text-[11px] font-bold text-utility-muted uppercase tracking-wider">
-                {isBulk ? `Assign ${apps.length} Assets` : 'Asset Assignment'}
+                {!hasApps ? "Thông báo" : isBulk ? `Phân loại ${apps.length} Tài sản` : 'Phân loại tài sản'}
               </h3>
               <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded transition-colors">
                 <X className="w-4 h-4 text-utility-muted" />
@@ -63,51 +66,82 @@ export default function AssignmentModal({ apps, isOpen, onClose, onAssign }: Ass
             </div>
 
             <div className="p-6">
-              {isBulk ? (
-                <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md mb-6">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle2 className="w-4 h-4 text-utility-accent" />
-                    <span className="text-[13px] font-bold text-utility-text">{apps.length} Apps Selected</span>
+              {!hasApps ? (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Info className="w-6 h-6 text-amber-600" />
                   </div>
-                  <p className="text-[11px] text-utility-muted italic">Batch assigning to a unified group.</p>
+                  <h4 className="text-[14px] font-bold text-utility-text mb-2">Chưa chọn ứng dụng</h4>
+                  <p className="text-[12px] text-utility-muted mb-6">Bạn cần chọn ít nhất một ứng dụng từ danh sách trước khi thực hiện phân loại hoặc tạo nhóm mới.</p>
+                  <Button onClick={onClose} className="w-full uppercase tracking-widest text-[11px]">Đã hiểu</Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 p-3 bg-white border border-utility-border rounded-md mb-6">
-                  <img src={apps[0].icon} className="w-8 h-8 rounded" referrerPolicy="no-referrer" />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-utility-text truncate">{apps[0].name}</p>
-                    <p className="text-[11px] text-utility-muted truncate">{apps[0].appId}</p>
+                <>
+                  {isBulk ? (
+                    <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-md mb-6">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4 text-utility-accent" />
+                        <span className="text-[13px] font-bold text-utility-text">Đã chọn {apps.length} ứng dụng</span>
+                      </div>
+                      <p className="text-[11px] text-utility-muted italic">Phân loại hàng loạt vào một nhóm duy nhất.</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-white border border-utility-border rounded-md mb-6">
+                      <img src={apps[0].icon} className="w-8 h-8 rounded" referrerPolicy="no-referrer" />
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-utility-text truncate">{apps[0].name}</p>
+                        <p className="text-[11px] text-utility-muted truncate">{apps[0].appId}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-utility-muted uppercase tracking-wider">ID Nhóm Ứng dụng</label>
+                      <button 
+                        onClick={() => setUseCustom(!useCustom)}
+                        className="text-[10px] font-bold text-utility-accent hover:underline"
+                      >
+                        {useCustom ? "Chọn nhóm có sẵn" : "Tạo ID mới"}
+                      </button>
+                    </div>
+
+                    {useCustom ? (
+                      <input 
+                        type="text"
+                        value={customGroupId}
+                        onChange={(e) => setCustomGroupId(e.target.value)}
+                        placeholder="Nhập ID nhóm mới..."
+                        className="w-full bg-white border border-utility-border rounded px-3 py-2 text-[13px] text-utility-text focus:outline-none focus:ring-1 focus:ring-utility-accent"
+                        autoFocus
+                      />
+                    ) : (
+                      <select 
+                        value={selectedGroupId}
+                        onChange={(e) => setSelectedGroupId(e.target.value)}
+                        className="w-full bg-white border border-utility-border rounded px-3 py-2 text-[13px] text-utility-text focus:outline-none focus:ring-1 focus:ring-utility-accent"
+                      >
+                        <option value="">Chọn nhóm mục tiêu...</option>
+                        {GROUPS.map(g => (
+                          <option key={g.id} value={g.id}>{g.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                </div>
+
+                  <div className="mt-8 flex gap-2">
+                    <Button variant="outline" className="flex-1 !h-9 text-[12px] font-bold uppercase tracking-wider" onClick={onClose}>Hủy bỏ</Button>
+                    <Button 
+                      className="flex-1 !h-9 text-[12px] font-bold uppercase tracking-wider" 
+                      disabled={useCustom ? !customGroupId : !selectedGroupId} 
+                      isLoading={isSubmitting}
+                      onClick={handleAssign}
+                    >
+                      <span>Xác nhận</span>
+                    </Button>
+                  </div>
+                </>
               )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-utility-muted uppercase tracking-wider mb-1.5">App Group ID</label>
-                  <select 
-                    value={selectedGroupId}
-                    onChange={(e) => setSelectedGroupId(e.target.value)}
-                    className="w-full bg-white border border-utility-border rounded px-3 py-2 text-[13px] text-utility-text focus:outline-none focus:ring-1 focus:ring-utility-accent"
-                  >
-                    <option value="">Choose target group...</option>
-                    {GROUPS.map(g => (
-                      <option key={g.id} value={g.id}>{g.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-8 flex gap-2">
-                <Button variant="outline" className="flex-1 !h-9 text-[12px] font-bold uppercase tracking-wider" onClick={onClose}>Cancel</Button>
-                <Button 
-                  className="flex-1 !h-9 text-[12px] font-bold uppercase tracking-wider" 
-                  disabled={!selectedGroupId} 
-                  isLoading={isSubmitting}
-                  onClick={handleAssign}
-                >
-                  <span>Assign</span>
-                </Button>
-              </div>
             </div>
           </motion.div>
         </>

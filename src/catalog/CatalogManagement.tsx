@@ -101,6 +101,30 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
     return acc;
   }, {} as Record<string, AppRecord[]>);
 
+  const handleUnassignGroup = async (groupId: string) => {
+    const appsInGroup = apps.filter(app => app.appGroupId === groupId);
+    try {
+      for (const app of appsInGroup) {
+        await fetch(`/api/app-catalog/${app.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appGroupId: null }),
+        });
+      }
+      await fetchApps();
+      refreshStats();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Pre-filter uncategorized apps for the modal if needed
+  const availableApps = apps.filter(app => !app.appGroupId);
+
+  const handleCreateNewGroup = () => {
+    setIsModalOpen(true);
+  };
+
   const StatCard = ({ label, value, color }: any) => (
     <div className="bg-white p-4 rounded-lg border border-utility-border shadow-sm">
       <p className="text-[11px] font-bold text-utility-muted uppercase tracking-widest mb-1">{label}</p>
@@ -112,23 +136,23 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
     <div className="space-y-6 pb-32">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-utility-text tracking-tight">App Records</h1>
-          <p className="text-xs text-utility-muted mt-0.5">Manage assignments and publication state for internal assets.</p>
+          <h1 className="text-xl font-bold text-utility-text tracking-tight">Hồ sơ Ứng dụng</h1>
+          <p className="text-xs text-utility-muted mt-0.5">Quản lý phân loại và trạng thái xuất bản cho các tài sản nội bộ.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={fetchApps} className="!h-9 !px-3 font-bold uppercase tracking-wider !text-[11px]">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
+            <span>Cập nhật</span>
           </Button>
         </div>
       </div>
 
       {/* Summary Strip */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard label="Total Apps" value={stats.totalApps.toLocaleString()} />
-        <StatCard label="Uncategorized" value={stats.uncategorized} color="text-utility-warning" />
-        <StatCard label="Pending Publish" value={stats.pendingPublish} color="text-utility-pending" />
-        <StatCard label="Live Groups" value={stats.groups} />
+        <StatCard label="Tổng ứng dụng" value={stats.totalApps.toLocaleString()} />
+        <StatCard label="Chưa phân loại" value={stats.uncategorized} color="text-utility-warning" />
+        <StatCard label="Chờ xuất bản" value={stats.pendingPublish} color="text-utility-pending" />
+        <StatCard label="Nhóm hiện hữu" value={stats.groups} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -137,7 +161,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
           <section className="bg-white rounded-lg border border-utility-border overflow-hidden">
             <div className="px-5 py-4 border-b border-utility-border bg-slate-50/50 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <h2 className="text-[13px] font-bold text-utility-text">Uncategorized Apps</h2>
+                <h2 className="text-[13px] font-bold text-utility-text">Ứng dụng chưa phân loại</h2>
                 <div className="flex items-center gap-2">
                   <Filter className="w-3.5 h-3.5 text-utility-muted" />
                   <select 
@@ -145,7 +169,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                     onChange={(e) => setCategoryFilter(e.target.value)}
                     className="bg-transparent text-[11px] font-bold text-utility-muted uppercase tracking-wider focus:outline-none cursor-pointer"
                   >
-                    <option value="">All Categories</option>
+                    <option value="">Tất cả danh mục</option>
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
@@ -159,14 +183,14 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                     onClick={() => setIsModalOpen(true)}
                     className="!h-8 !px-3 !text-[10px] font-bold uppercase tracking-wider !bg-utility-accent/10 !text-utility-accent hover:!bg-utility-accent hover:!text-white border border-utility-accent/20"
                   >
-                    Assign {selectedApps.length} Selected
+                    Phân loại {selectedApps.length} mục
                   </Button>
                 )}
                 <div className="relative w-48">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-utility-muted" />
                   <input 
                     type="text" 
-                    placeholder="Search apps..." 
+                    placeholder="Tìm kiếm ứng dụng..." 
                     className="w-full pl-8 pr-3 py-1.5 bg-white border border-utility-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-utility-accent"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -177,7 +201,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
 
             {uncategorized.length === 0 ? (
               <div className="p-12 text-center text-utility-muted">
-                <p className="text-sm italic">No matching applications found.</p>
+                <p className="text-sm italic">Không tìm thấy ứng dụng phù hợp.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -195,10 +219,10 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                           }}
                         />
                       </th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">App</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Store/Category</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Imported</th>
-                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider text-right">Action</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Ứng dụng</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Chợ / Danh mục</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider">Ngày nhập</th>
+                      <th className="px-5 py-3 text-[11px] font-bold text-utility-muted uppercase tracking-wider text-right">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f1f5f9]">
@@ -239,7 +263,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                             className="text-[11px] font-bold text-utility-accent hover:underline"
                             onClick={() => { setSelectedApps([app]); setIsModalOpen(true); }}
                           >
-                            Assign Group
+                            Phân loại
                           </button>
                         </td>
                       </tr>
@@ -254,8 +278,14 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
         {/* Right Column: Groups */}
         <div className="space-y-6">
           <section className="bg-white rounded-lg border border-utility-border overflow-hidden">
-            <div className="px-5 py-4 border-b border-utility-border bg-slate-50/50">
-              <h2 className="text-[13px] font-bold text-utility-text">Grouped Assets</h2>
+            <div className="px-5 py-4 border-b border-utility-border bg-slate-50/50 flex items-center justify-between">
+              <h2 className="text-[13px] font-bold text-utility-text">Tài sản đã nhóm</h2>
+              <button 
+                onClick={handleCreateNewGroup}
+                className="text-[11px] font-bold text-utility-accent hover:underline"
+              >
+                + Tạo nhóm mới
+              </button>
             </div>
             <div className="p-4 space-y-3">
               {Object.entries(grouped).map(([groupId, groupApps]) => {
@@ -270,7 +300,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[12px] font-mono font-bold bg-[#f1f5f9] px-1.5 py-0.5 rounded text-utility-text">{groupId}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-utility-muted">{appsList.length} Apps</span>
+                          <span className="text-[11px] text-utility-muted">{appsList.length} ứng dụng</span>
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-utility-muted" /> : <ChevronRight className="w-3.5 h-3.5 text-utility-muted" />}
                         </div>
                       </div>
@@ -278,11 +308,11 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                         {appsList.some(a => a.status === 'Pending Publish') ? (
                           <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-utility-pending animate-pulse" />
-                            <span className="text-[11px] text-utility-pending font-medium uppercase tracking-tight">Changes pending</span>
+                            <span className="text-[11px] text-utility-pending font-medium uppercase tracking-tight">Đang chờ xử lý</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-utility-success tracking-tight uppercase font-medium">● All changes live</span>
+                            <span className="text-[11px] text-utility-success tracking-tight uppercase font-medium">● Đã xuất bản</span>
                           </div>
                         )}
                       </div>
@@ -296,6 +326,15 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                           exit={{ height: 0 }}
                           className="px-3 pb-3 bg-[#fafafa] border-t border-utility-border divide-y divide-slate-100"
                         >
+                          <div className="py-2 flex justify-between items-center bg-slate-50/50 -mx-3 px-3 mb-2">
+                            <span className="text-[10px] font-bold text-utility-muted uppercase tracking-widest">Danh sách ứng dụng</span>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleUnassignGroup(groupId); }}
+                              className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline"
+                            >
+                              Xóa toàn bộ
+                            </button>
+                          </div>
                           {appsList.map(app => (
                             <div key={app.id} className="flex items-center justify-between py-2 group">
                               <div className="flex items-center gap-2 min-w-0">
@@ -317,7 +356,7 @@ export default function CatalogManagement({ stats, refreshStats }: CatalogManage
                 );
               })}
               {Object.keys(grouped).length === 0 && (
-                <p className="text-[12px] text-utility-muted text-center py-4 italic">No groups defined.</p>
+                <p className="text-[12px] text-utility-muted text-center py-4 italic">Chưa có nhóm nào được định nghĩa.</p>
               )}
             </div>
           </section>
